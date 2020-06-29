@@ -70,6 +70,7 @@ A Simple and Comprehensive Vulnerability Scanner for Containers and other Artifa
   * [Application Dependencies](#application-dependencies)
   * [Image Tar format](#image-tar-format)
   * [Data sources](#data-sources)
+- [Air-gapped environment](#air-gapped-environment)
 - [Comparison with other scanners](#comparison-with-other-scanners)
 - [Usage](#usage)
   * [Image](#image-1)
@@ -887,6 +888,11 @@ You can load templates from a file prefixing the template path with an @.
 $ trivy image --format template --template "@/path/to/template" golang:1.12-alpine
 ```
 
+In the following example using the template `junit.tpl` XML can be generated.
+```
+$ trivy image --format template --template "@contrib/junit.tpl" -o junit-report.xml  golang:1.12-alpine
+```
+
 ### Filter the vulnerabilities by severities
 
 ```
@@ -1582,13 +1588,18 @@ Distroless: https://github.com/GoogleContainerTools/distroless
 
 `Trivy` automatically detects the following files in the container and scans vulnerabilities in the application dependencies.
 
-- Gemfile.lock
-- Pipfile.lock
-- poetry.lock
-- composer.lock
-- package-lock.json
-- yarn.lock
-- Cargo.lock
+- Ruby
+  - Gemfile.lock
+- Python
+  - Pipfile.lock
+  - poetry.lock
+- PHP
+  - composer.lock
+- Node.js
+  - package-lock.json
+  - yarn.lock
+- Rust
+  - Cargo.lock
 
 The path of these files does not matter.
 
@@ -1729,6 +1740,9 @@ OPTIONS:
    --token value       for authentication [$TRIVY_TOKEN]
    --listen value      listen address (default: "localhost:4954") [$TRIVY_LISTEN]
 ```
+
+# Air-gapped environment
+See [here](docs/air-gap.md)
 
 # Comparison with other scanners
 

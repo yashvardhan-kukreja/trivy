@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/afero"
 
 	"github.com/google/wire"
@@ -31,6 +33,20 @@ var DBWorkerSuperSet = wire.NewSet(
 	newDBWorker,
 )
 
+var MetricsRegistry *prometheus.Registry
+var GaugeMetric = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "trivy",
+		Help: "Gauge Metrics associated with trivy - Last DB Update, Last DB Update Attempt ...",
+	},
+	[]string{"action"},
+)
+
+func init() {
+	MetricsRegistry = prometheus.NewRegistry()
+	MetricsRegistry.MustRegister(GaugeMetric)
+}
+
 func ListenAndServe(c config.Config, fsCache cache.FSCache) error {
 	requestWg := &sync.WaitGroup{}
 	dbUpdateWg := &sync.WaitGroup{}
@@ -51,6 +67,9 @@ func ListenAndServe(c config.Config, fsCache cache.FSCache) error {
 
 	go func() {
 		worker := initializeDBWorker(c.CacheDir, true)
+		if err := initializeMetricGauge(GaugeMetric, c.CacheDir); err != nil {
+			log.Logger.Errorf("%+v\n", err)
+		}
 		ctx := context.Background()
 		for {
 			time.Sleep(1 * time.Hour)
@@ -76,9 +95,9 @@ func ListenAndServe(c config.Config, fsCache cache.FSCache) error {
 	libHandler := rpcDetector.NewLibDetectorServer(initializeLibServer(), nil)
 	mux.Handle(rpcDetector.LibDetectorPathPrefix, withToken(withWaitGroup(libHandler), c.Token, c.TokenHeader))
 
-	if err := showLastDbUpdate(c.CacheDir); err != nil {
-		log.Logger.Errorf("%+v\n", err)
-	}
+	// promHandler is for dealing with update the custom prometheus metrics
+	promHandler := promhttp.HandlerFor(MetricsRegistry, promhttp.HandlerOpts{})
+	mux.Handle("/metrics", withToken(withWaitGroup(promHandler), c.Token, c.TokenHeader))
 
 	log.Logger.Infof("Listening %s...", c.Listen)
 
@@ -105,6 +124,9 @@ func newDBWorker(dbClient dbFile.Operation) dbWorker {
 
 func (w dbWorker) update(ctx context.Context, appVersion, cacheDir string,
 	dbUpdateWg, requestWg *sync.WaitGroup) error {
+	currentTime := float64(time.Now().Unix())
+	updateLastDBUpdateAttemptPrometheus(GaugeMetric, currentTime)
+
 	log.Logger.Debug("Check for DB update...")
 	needsUpdate, err := w.dbClient.NeedsUpdate(appVersion, false, false)
 	if err != nil {
@@ -117,6 +139,7 @@ func (w dbWorker) update(ctx context.Context, appVersion, cacheDir string,
 	if err = w.hotUpdate(ctx, cacheDir, dbUpdateWg, requestWg); err != nil {
 		return xerrors.Errorf("failed DB hot update")
 	}
+	updateLastDBUpdatePrometheus(GaugeMetric, currentTime)
 	return nil
 }
 
@@ -158,14 +181,21 @@ func (w dbWorker) hotUpdate(ctx context.Context, cacheDir string, dbUpdateWg, re
 	return nil
 }
 
-func showLastDbUpdate(cacheDir string) error {
+func initializeMetricGauge(gauge *prometheus.GaugeVec, cacheDir string) error {
 	m := dbFile.NewMetadata(afero.NewOsFs(), cacheDir)
 	metadata, err := m.Get()
 	if err != nil {
-		return xerrors.Errorf("something wrong with DB: %w", err)
+		return xerrors.Errorf("Error initialising the metrics for prometheus endpoint: %w", err)
 	}
-	log.Logger.Infof("Last DB Update at: %s",
-		metadata.UpdatedAt)
-
+	updateLastDBUpdatePrometheus(gauge, float64(metadata.UpdatedAt.Unix()))
+	updateLastDBUpdateAttemptPrometheus(gauge, float64(metadata.UpdatedAt.Unix()))
 	return nil
+}
+
+func updateLastDBUpdatePrometheus(gauge *prometheus.GaugeVec, time float64) {
+	gauge.With(prometheus.Labels{"action": "last_db_update"}).Set(time)
+}
+
+func updateLastDBUpdateAttemptPrometheus(gauge *prometheus.GaugeVec, time float64) {
+	gauge.With(prometheus.Labels{"action": "last_db_update_attempt"}).Set(time)
 }

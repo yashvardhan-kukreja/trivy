@@ -65,7 +65,8 @@ func run(c config.Config, initializeScanner InitializeScanner) error {
 		target = c.Input
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	defer cancel()
 	scanner, cleanup, err := initializeScanner(ctx, target, cacheClient, cacheClient, c.Timeout)
 	if err != nil {
 		return xerrors.Errorf("unable to initialize a scanner: %w", err)
@@ -75,6 +76,7 @@ func run(c config.Config, initializeScanner InitializeScanner) error {
 	scanOptions := types.ScanOptions{
 		VulnType:            c.VulnType,
 		ScanRemovedPackages: c.ScanRemovedPkgs, // this is valid only for image subcommand
+		ListAllPackages:     c.ListAllPkgs,
 	}
 	log.Logger.Debugf("Vulnerability type:  %s", scanOptions.VulnType)
 
@@ -86,11 +88,15 @@ func run(c config.Config, initializeScanner InitializeScanner) error {
 	vulnClient := initializeVulnerabilityClient()
 	for i := range results {
 		vulnClient.FillInfo(results[i].Vulnerabilities, results[i].Type)
-		results[i].Vulnerabilities = vulnClient.Filter(results[i].Vulnerabilities,
-			c.Severities, c.IgnoreUnfixed, c.IgnoreFile)
+		vulns, err := vulnClient.Filter(ctx, results[i].Vulnerabilities,
+			c.Severities, c.IgnoreUnfixed, c.IgnoreFile, c.IgnorePolicy)
+		if err != nil {
+			return xerrors.Errorf("unable to filter vulnerabilities: %w", err)
+		}
+		results[i].Vulnerabilities = vulns
 	}
 
-	if err = report.WriteResults(c.Format, c.Output, results, c.Template, c.Light); err != nil {
+	if err = report.WriteResults(c.Format, c.Output, c.Severities, results, c.Template, c.Light); err != nil {
 		return xerrors.Errorf("unable to write results: %w", err)
 	}
 

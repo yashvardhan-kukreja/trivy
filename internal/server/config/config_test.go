@@ -10,6 +10,7 @@ import (
 
 	"github.com/aquasecurity/trivy/internal/config"
 	c "github.com/aquasecurity/trivy/internal/server/config"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func TestNew(t *testing.T) {
@@ -59,15 +60,21 @@ func TestNew(t *testing.T) {
 
 func TestConfig_Init(t *testing.T) {
 	tests := []struct {
-		name         string
-		globalConfig config.GlobalConfig
-		dbConfig     config.DBConfig
-		args         []string
-		wantErr      string
+		name                string
+		globalConfig        config.GlobalConfig
+		dbConfig            config.DBConfig
+		args                []string
+		wantErr             string
+		skipMetricsRegistry bool
 	}{
 		{
 			name: "happy path",
 			args: []string{"alpine:3.10"},
+		},
+		{
+			name:                "happy path: skip prometheus metrics registry",
+			args:                []string{"alpine:3.10"},
+			skipMetricsRegistry: true,
 		},
 		{
 			name: "happy path: reset",
@@ -88,8 +95,15 @@ func TestConfig_Init(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var metricsRegistry *prometheus.Registry
+			if tt.skipMetricsRegistry {
+				metricsRegistry = nil
+			} else {
+				metricsRegistry = prometheus.NewRegistry()
+			}
 			c := &c.Config{
-				DBConfig: tt.dbConfig,
+				DBConfig:        tt.dbConfig,
+				MetricsRegistry: metricsRegistry,
 			}
 
 			err := c.Init()

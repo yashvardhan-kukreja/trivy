@@ -35,7 +35,7 @@ func TestServer_Detect(t *testing.T) {
 		name                string
 		args                args
 		detectExpectation   library.OperationDetectExpectation
-		fillInfoExpectation vulnerability.FillInfoExpectation
+		fillInfoExpectation vulnerability.OperationFillInfoExpectation
 		wantRes             *proto.DetectResponse
 		wantErr             string
 	}{
@@ -80,8 +80,8 @@ func TestServer_Detect(t *testing.T) {
 					},
 				},
 			},
-			fillInfoExpectation: vulnerability.FillInfoExpectation{
-				Args: vulnerability.FillInfoArgs{
+			fillInfoExpectation: vulnerability.OperationFillInfoExpectation{
+				Args: vulnerability.OperationFillInfoArgs{
 					Vulns: []types.DetectedVulnerability{
 						{
 							VulnerabilityID:  "CVE-2019-0001",
@@ -112,6 +112,7 @@ func TestServer_Detect(t *testing.T) {
 						Title:            "title",
 						Description:      "description",
 						Severity:         common.Severity_MEDIUM,
+						Cvss:             make(map[string]*common.CVSS),
 						References:       []string{"http://example.com"},
 						Layer: &common.Layer{
 							Digest: "sha256:154ad0735c360b212b167f424d33a62305770a1fcfb6363882f5c436cfbd9812",

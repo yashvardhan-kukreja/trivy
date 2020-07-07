@@ -39,7 +39,7 @@ func TestScanServer_Scan(t *testing.T) {
 		name                string
 		args                args
 		scanExpectation     scanner.DriverScanExpectation
-		fillInfoExpectation vulnerability.FillInfoExpectation
+		fillInfoExpectation vulnerability.OperationFillInfoExpectation
 		want                *rpcScanner.ScanResponse
 		wantErr             string
 	}{
@@ -82,8 +82,8 @@ func TestScanServer_Scan(t *testing.T) {
 					},
 				},
 			},
-			fillInfoExpectation: vulnerability.FillInfoExpectation{
-				Args: vulnerability.FillInfoArgs{
+			fillInfoExpectation: vulnerability.OperationFillInfoExpectation{
+				Args: vulnerability.OperationFillInfoArgs{
 					Vulns: []types.DetectedVulnerability{
 						{
 							VulnerabilityID:  "CVE-2019-0001",
@@ -114,6 +114,7 @@ func TestScanServer_Scan(t *testing.T) {
 								FixedVersion:     "1.2.4",
 								SeveritySource:   "nvd",
 								Layer:            &common.Layer{},
+								Cvss:             make(map[string]*common.CVSS),
 							},
 						},
 						Type: "alpine",

@@ -6,6 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/aquasecurity/trivy)](https://goreportcard.com/report/github.com/aquasecurity/trivy)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/aquasecurity/trivy/blob/master/LICENSE)
 [![Docker image](https://images.microbadger.com/badges/version/aquasec/trivy.svg)](https://microbadger.com/images/aquasec/trivy "Get your own version badge on microbadger.com")
+[![codecov](https://codecov.io/gh/aquasecurity/trivy/branch/master/graph/badge.svg)](https://codecov.io/gh/aquasecurity/trivy)
 
 A Simple and Comprehensive Vulnerability Scanner for Containers and other Artifacts, Suitable for CI.
 
@@ -44,6 +45,7 @@ A Simple and Comprehensive Vulnerability Scanner for Containers and other Artifa
     + [Save the results using a template](#save-the-results-using-a-template)
     + [Filter the vulnerabilities by severities](#filter-the-vulnerabilities-by-severities)
     + [Filter the vulnerabilities by type](#filter-the-vulnerabilities-by-type)
+    + [Filter the vulnerabilities by Open Policy Agent](#filter-the-vulnerabilities-by-open-policy-agent-policy)
     + [Skip update of vulnerability DB](#skip-update-of-vulnerability-db)
     + [Only download vulnerability database](#only-download-vulnerability-database)
     + [Ignore unfixed vulnerabilities](#ignore-unfixed-vulnerabilities)
@@ -181,7 +183,7 @@ yay -Sy trivy-bin
 
 ## Homebrew
 
-You can use homebrew on macOS.
+You can use homebrew on macOS and Linux.
 
 ```
 $ brew install aquasecurity/trivy/trivy
@@ -893,6 +895,11 @@ In the following example using the template `junit.tpl` XML can be generated.
 $ trivy image --format template --template "@contrib/junit.tpl" -o junit-report.xml  golang:1.12-alpine
 ```
 
+In the following example using the template `sarif.tpl` [Sarif](https://docs.github.com/en/github/finding-security-vulnerabilities-and-errors-in-your-code/managing-results-from-code-scanning) can be generated.
+```
+$ trivy image --format template --template "@contrib/sarif.tpl" -o report.sarif  golang:1.12-alpine
+```
+
 ### Filter the vulnerabilities by severities
 
 ```
@@ -1092,6 +1099,41 @@ Total: 4751 (UNKNOWN: 1, LOW: 150, MEDIUM: 3504, HIGH: 1013, CRITICAL: 83)
 ```
 
 </details>
+
+### Filter the vulnerabilities by Open Policy Agent policy
+[EXPERIMENTAL] This feature might change without preserving backwards compatibility.
+
+Trivy supports Open Policy Agent (OPA) to filter vulnerabilities. You can specify a Rego file with `--ignore-policy` option.
+
+The Rego package name must be `trivy` and it must include a rule called `ignore` which determines if each individual vulnerability should be excluded (ignore=true) or not (ignore=false). In the policy, each vulnerability will be available for inspection as the `input` variable. The structure of each vulnerability input is the same as for the Trivy JSON output.  
+There is a built-in Rego library with helper functions that you can import into your policy using: `import data.lib.trivy`. For more info about the helper functions, look at the library [here](pkg/vulnerability/module.go)
+
+To get started, see the [example policy](./contrib/example_policy).
+
+```
+$ trivy image --policy contrib/example_filter/basic.rego centos:7
+```
+
+<details>
+<summary>Result</summary>
+
+```
+centos:7 (centos 7.8.2003)
+==========================
+Total: 1 (UNKNOWN: 0, LOW: 0, MEDIUM: 0, HIGH: 1, CRITICAL: 0)
+
++---------+------------------+----------+-------------------+---------------+--------------------------------+
+| LIBRARY | VULNERABILITY ID | SEVERITY | INSTALLED VERSION | FIXED VERSION |             TITLE              |
++---------+------------------+----------+-------------------+---------------+--------------------------------+
+| glib2   | CVE-2016-3191    | HIGH     | 2.56.1-5.el7      |               | pcre: workspace overflow       |
+|         |                  |          |                   |               | for (*ACCEPT) with deeply      |
+|         |                  |          |                   |               | nested parentheses (8.39/13,   |
+|         |                  |          |                   |               | 10.22/12)                      |
++---------+------------------+----------+-------------------+---------------+--------------------------------+
+```
+
+</details>
+
 
 ### Skip update of vulnerability DB
 
@@ -1690,6 +1732,7 @@ OPTIONS:
    --ignorefile value  specify .trivyignore file (default: ".trivyignore") [$TRIVY_IGNOREFILE]
    --timeout value     docker timeout (default: 2m0s) [$TRIVY_TIMEOUT]
    --light             light mode: it's faster, but vulnerability descriptions and references are not displayed (default: false) [$TRIVY_LIGHT]
+   --list-all-pkgs     enabling the option will output all packages regardless of vulnerability [$TRIVY_LIST_ALL_PKGS]
    --help, -h          show help (default: false)
 ```
 

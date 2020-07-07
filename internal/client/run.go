@@ -45,7 +45,8 @@ func run(c config.Config) (err error) {
 	}
 
 	var scanner scanner.Scanner
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	defer cancel()
 	remoteCache := cache.NewRemoteCache(cache.RemoteURL(c.RemoteAddr), c.CustomHeaders)
 
 	cleanup := func() {}
@@ -79,11 +80,15 @@ func run(c config.Config) (err error) {
 
 	vulnClient := initializeVulnerabilityClient()
 	for i := range results {
-		results[i].Vulnerabilities = vulnClient.Filter(results[i].Vulnerabilities,
-			c.Severities, c.IgnoreUnfixed, c.IgnoreFile)
+		vulns, err := vulnClient.Filter(ctx, results[i].Vulnerabilities,
+			c.Severities, c.IgnoreUnfixed, c.IgnoreFile, c.IgnorePolicy)
+		if err != nil {
+			return err
+		}
+		results[i].Vulnerabilities = vulns
 	}
 
-	if err = report.WriteResults(c.Format, c.Output, results, c.Template, false); err != nil {
+	if err = report.WriteResults(c.Format, c.Output, c.Severities, results, c.Template, false); err != nil {
 		return xerrors.Errorf("unable to write results: %w", err)
 	}
 

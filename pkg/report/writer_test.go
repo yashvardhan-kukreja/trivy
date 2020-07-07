@@ -122,7 +122,7 @@ func TestReportWriter_Table(t *testing.T) {
 				},
 			}
 			tableWritten := bytes.Buffer{}
-			assert.NoError(t, report.WriteResults("table", &tableWritten, inputResults, "", tc.light), tc.name)
+			assert.NoError(t, report.WriteResults("table", &tableWritten, nil, inputResults, "", tc.light), tc.name)
 			assert.Equal(t, tc.expectedOutput, tableWritten.String(), tc.name)
 		})
 	}
@@ -184,7 +184,7 @@ func TestReportWriter_JSON(t *testing.T) {
 				},
 			}
 
-			assert.NoError(t, report.WriteResults("json", &jsonWritten, inputResults, "", false), tc.name)
+			assert.NoError(t, report.WriteResults("json", &jsonWritten, nil, inputResults, "", false), tc.name)
 
 			writtenResults := report.Results{}
 			errJson := json.Unmarshal([]byte(jsonWritten.String()), &writtenResults)
@@ -275,6 +275,27 @@ func TestReportWriter_Template(t *testing.T) {
 	</testsuite>
 </testsuites>`,
 		},
+		{
+			name: "happy path with/without period description should return with period",
+			detectedVulns: []types.DetectedVulnerability{
+				{
+					VulnerabilityID: "CVE-2019-0000",
+					PkgName:         "foo",
+					Vulnerability: dbTypes.Vulnerability{
+						Description: "without period",
+					},
+				},
+				{
+					VulnerabilityID: "CVE-2019-0000",
+					PkgName:         "bar",
+					Vulnerability: dbTypes.Vulnerability{
+						Description: "with period.",
+					},
+				},
+			},
+			template: `{{ range . }}{{ range .Vulnerabilities}}{{.VulnerabilityID}} {{ endWithPeriod .Description | printf "%q" }}{{ end }}{{ end }}`,
+			expected: `CVE-2019-0000 "without period."CVE-2019-0000 "with period."`,
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -287,7 +308,7 @@ func TestReportWriter_Template(t *testing.T) {
 				},
 			}
 
-			assert.NoError(t, report.WriteResults("template", &tmplWritten, inputResults, tc.template, false))
+			assert.NoError(t, report.WriteResults("template", &tmplWritten, nil, inputResults, tc.template, false))
 			assert.Equal(t, tc.expected, tmplWritten.String())
 		})
 	}

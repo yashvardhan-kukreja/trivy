@@ -33,20 +33,6 @@ var DBWorkerSuperSet = wire.NewSet(
 	newDBWorker,
 )
 
-var MetricsRegistry *prometheus.Registry
-var GaugeMetric = prometheus.NewGaugeVec(
-	prometheus.GaugeOpts{
-		Name: "trivy",
-		Help: "Gauge Metrics associated with trivy - Last DB Update, Last DB Update Attempt ...",
-	},
-	[]string{"action"},
-)
-
-func init() {
-	MetricsRegistry = prometheus.NewRegistry()
-	MetricsRegistry.MustRegister(GaugeMetric)
-}
-
 func ListenAndServe(c config.Config, fsCache cache.FSCache) error {
 	requestWg := &sync.WaitGroup{}
 	dbUpdateWg := &sync.WaitGroup{}
@@ -67,13 +53,14 @@ func ListenAndServe(c config.Config, fsCache cache.FSCache) error {
 
 	go func() {
 		worker := initializeDBWorker(c.CacheDir, true)
-		if err := initializeMetricGauge(GaugeMetric, c.CacheDir); err != nil {
+		if err := initializeMetricGauge(c.GaugeMetric, c.CacheDir); err != nil {
+			c.GaugeMetric = nil // just in case some if some error/issue occurs (probably with GaugeMetric). So, making c.GaugeMetric nil and hence, unusable for any of the functions which require it
 			log.Logger.Errorf("%+v\n", err)
 		}
 		ctx := context.Background()
 		for {
 			time.Sleep(1 * time.Hour)
-			if err := worker.update(ctx, c.AppVersion, c.CacheDir, dbUpdateWg, requestWg); err != nil {
+			if err := worker.update(ctx, c.AppVersion, c.CacheDir, dbUpdateWg, requestWg, c.GaugeMetric); err != nil {
 				log.Logger.Errorf("%+v\n", err)
 			}
 		}
@@ -96,7 +83,7 @@ func ListenAndServe(c config.Config, fsCache cache.FSCache) error {
 	mux.Handle(rpcDetector.LibDetectorPathPrefix, withToken(withWaitGroup(libHandler), c.Token, c.TokenHeader))
 
 	// promHandler is for dealing with update the custom prometheus metrics
-	promHandler := promhttp.HandlerFor(MetricsRegistry, promhttp.HandlerOpts{})
+	promHandler := promhttp.HandlerFor(c.MetricsRegistry, promhttp.HandlerOpts{Timeout: 10 * time.Second})
 	mux.Handle("/metrics", withToken(withWaitGroup(promHandler), c.Token, c.TokenHeader))
 
 	log.Logger.Infof("Listening %s...", c.Listen)
@@ -123,10 +110,10 @@ func newDBWorker(dbClient dbFile.Operation) dbWorker {
 }
 
 func (w dbWorker) update(ctx context.Context, appVersion, cacheDir string,
-	dbUpdateWg, requestWg *sync.WaitGroup) error {
-	currentTime := float64(time.Now().Unix())
-	updateLastDBUpdateAttemptPrometheus(GaugeMetric, currentTime)
-
+	dbUpdateWg, requestWg *sync.WaitGroup, gaugeMetric *prometheus.GaugeVec) error {
+	if err := updateLastDBUpdatePrometheus(gaugeMetric, float64(time.Now().Unix()), true); err != nil { //updating the last_db_update_attempt prom metric coz a db update attempt got triggered
+		return xerrors.Errorf("%w", err)
+	}
 	log.Logger.Debug("Check for DB update...")
 	needsUpdate, err := w.dbClient.NeedsUpdate(appVersion, false, false)
 	if err != nil {
@@ -139,7 +126,9 @@ func (w dbWorker) update(ctx context.Context, appVersion, cacheDir string,
 	if err = w.hotUpdate(ctx, cacheDir, dbUpdateWg, requestWg); err != nil {
 		return xerrors.Errorf("failed DB hot update")
 	}
-	updateLastDBUpdatePrometheus(GaugeMetric, currentTime)
+	if err = updateLastDBUpdatePrometheus(gaugeMetric, float64(time.Now().Unix()), false); err != nil { //updating the last_db_update metric (here, coz code reaches till here, then it's a successful db update)
+		return xerrors.Errorf("%w", err)
+	}
 	return nil
 }
 
@@ -182,20 +171,29 @@ func (w dbWorker) hotUpdate(ctx context.Context, cacheDir string, dbUpdateWg, re
 }
 
 func initializeMetricGauge(gauge *prometheus.GaugeVec, cacheDir string) error {
+	// the nil gauge situation will be caught by updateLastDBUpdatePrometheus function
 	m := dbFile.NewMetadata(afero.NewOsFs(), cacheDir)
 	metadata, err := m.Get()
 	if err != nil {
 		return xerrors.Errorf("Error initialising the metrics for prometheus endpoint: %w", err)
 	}
-	updateLastDBUpdatePrometheus(gauge, float64(metadata.UpdatedAt.Unix()))
-	updateLastDBUpdateAttemptPrometheus(gauge, float64(metadata.UpdatedAt.Unix()))
+	if err = updateLastDBUpdatePrometheus(gauge, float64(metadata.UpdatedAt.Unix()), true); err != nil { //updating the last_db_update_attempt prom metric coz a db update attempt got triggered
+		return xerrors.Errorf("%w", err)
+	}
+	if err = updateLastDBUpdatePrometheus(gauge, float64(metadata.UpdatedAt.Unix()), false); err != nil { //updating the last_db_update metric (here, coz code reaches till here, then it's a successful db update)
+		return xerrors.Errorf("%w", err)
+	}
 	return nil
 }
 
-func updateLastDBUpdatePrometheus(gauge *prometheus.GaugeVec, time float64) {
-	gauge.With(prometheus.Labels{"action": "last_db_update"}).Set(time)
-}
-
-func updateLastDBUpdateAttemptPrometheus(gauge *prometheus.GaugeVec, time float64) {
-	gauge.With(prometheus.Labels{"action": "last_db_update_attempt"}).Set(time)
+func updateLastDBUpdatePrometheus(gauge *prometheus.GaugeVec, time float64, onlyDBAttempt bool) error {
+	if gauge == nil {
+		return xerrors.Errorf("Prometheus gauge found to be nil")
+	}
+	if onlyDBAttempt {
+		gauge.With(prometheus.Labels{"action": "last_db_update_attempt"}).Set(time)
+	} else {
+		gauge.With(prometheus.Labels{"action": "last_db_update"}).Set(time)
+	}
+	return nil
 }

@@ -3,9 +3,10 @@ module github.com/aquasecurity/trivy
 go 1.13
 
 require (
+	github.com/Masterminds/semver/v3 v3.1.0
 	github.com/aquasecurity/fanal v0.0.0-20200528202907-79693bf4a058
 	github.com/aquasecurity/go-dep-parser v0.0.0-20190819075924-ea223f0ef24b
-	github.com/aquasecurity/trivy-db v0.0.0-20200702223044-f0f6ca684644
+	github.com/aquasecurity/trivy-db v0.0.0-20200715174849-fa5a3ca24b16
 	github.com/caarlos0/env/v6 v6.0.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cheggaaa/pb/v3 v3.0.3
@@ -18,10 +19,10 @@ require (
 	github.com/knqyf263/go-apk-version v0.0.0-20200609155635-041fdbb8563f
 	github.com/knqyf263/go-deb-version v0.0.0-20190517075300-09fca494f03d
 	github.com/knqyf263/go-rpm-version v0.0.0-20170716094938-74609b86c936
-	github.com/knqyf263/go-version v1.1.1
 	github.com/kylelemons/godebug v1.1.0
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/olekukonko/tablewriter v0.0.2-0.20190607075207-195002e6e56a
+	github.com/open-policy-agent/opa v0.21.1
 	github.com/spf13/afero v1.2.2
 	github.com/stretchr/testify v1.6.1
 	github.com/testcontainers/testcontainers-go v0.3.1

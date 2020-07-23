@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -47,7 +48,8 @@ func Test_dbWorker_update(t *testing.T) {
 	}
 
 	type args struct {
-		appVersion string
+		appVersion  string
+		nilGaugeVec bool
 	}
 	tests := []struct {
 		name        string
@@ -104,6 +106,15 @@ func Test_dbWorker_update(t *testing.T) {
 			args:    args{appVersion: "1"},
 			wantErr: "failed DB hot update",
 		},
+		{
+			name: "Nil GaugeVec returns an error",
+			needsUpdate: needsUpdate{
+				input:  needsUpdateInput{appVersion: "1", skip: false},
+				output: needsUpdateOutput{needsUpdate: true},
+			},
+			args:    args{appVersion: "1", nilGaugeVec: true},
+			wantErr: "Prometheus gauge found to be nil: Prometheus gauge found to be nil",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -134,10 +145,22 @@ func Test_dbWorker_update(t *testing.T) {
 			}
 
 			w := newDBWorker(mockDBClient)
-
+			var gaugeVec *prometheus.GaugeVec
+			if tt.args.nilGaugeVec {
+				gaugeVec = nil
+			} else {
+				gaugeVec = prometheus.NewGaugeVec(
+					prometheus.GaugeOpts{
+						Name: "trivy",
+						Help: "Gauge Metrics associated with trivy - Last DB Update, Last DB Update Attempt ...",
+					},
+					[]string{"action"},
+				)
+				prometheus.NewRegistry().MustRegister(gaugeVec)
+			}
 			var dbUpdateWg, requestWg sync.WaitGroup
 			err = w.update(context.Background(), tt.args.appVersion, cacheDir,
-				&dbUpdateWg, &requestWg)
+				&dbUpdateWg, &requestWg, gaugeVec)
 			if tt.wantErr != "" {
 				require.NotNil(t, err, tt.name)
 				assert.Contains(t, err.Error(), tt.wantErr, tt.name)

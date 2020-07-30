@@ -76,6 +76,7 @@ func run(c config.Config, initializeScanner InitializeScanner) error {
 	scanOptions := types.ScanOptions{
 		VulnType:            c.VulnType,
 		ScanRemovedPackages: c.ScanRemovedPkgs, // this is valid only for image subcommand
+		ListAllPackages:     c.ListAllPkgs,
 	}
 	log.Logger.Debugf("Vulnerability type:  %s", scanOptions.VulnType)
 
@@ -95,7 +96,7 @@ func run(c config.Config, initializeScanner InitializeScanner) error {
 		results[i].Vulnerabilities = vulns
 	}
 
-	if err = report.WriteResults(c.Format, c.Output, results, c.Template, c.Light); err != nil {
+	if err = report.WriteResults(c.Format, c.Output, c.Severities, results, c.Template, c.Light); err != nil {
 		return xerrors.Errorf("unable to write results: %w", err)
 	}
 

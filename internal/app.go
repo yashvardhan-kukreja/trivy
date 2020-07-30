@@ -182,6 +182,12 @@ var (
 		EnvVars: []string{"TRIVY_IGNORE_POLICY"},
 	}
 
+	listAllPackages = cli.BoolFlag{
+		Name:    "list-all-pkgs",
+		Usage:   "enabling the option will output all packages regardless of vulnerability",
+		EnvVars: []string{"TRIVY_LIST_ALL_PKGS"},
+	}
+
 	globalFlags = []cli.Flag{
 		&quietFlag,
 		&debugFlag,
@@ -207,6 +213,7 @@ var (
 		&timeoutFlag,
 		&lightFlag,
 		&ignorePolicy,
+		&listAllPackages,
 	}
 
 	// deprecated options
@@ -360,6 +367,10 @@ func NewFilesystemCommand() *cli.Command {
 			&timeoutFlag,
 			&noProgressFlag,
 			&ignorePolicy,
+<<<<<<< HEAD
+=======
+			&listAllPackages,
+>>>>>>> master
 		},
 	}
 }
@@ -389,6 +400,10 @@ func NewRepositoryCommand() *cli.Command {
 			&timeoutFlag,
 			&noProgressFlag,
 			&ignorePolicy,
+<<<<<<< HEAD
+=======
+			&listAllPackages,
+>>>>>>> master
 		},
 	}
 }

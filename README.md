@@ -6,6 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/aquasecurity/trivy)](https://goreportcard.com/report/github.com/aquasecurity/trivy)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/aquasecurity/trivy/blob/master/LICENSE)
 [![Docker image](https://images.microbadger.com/badges/version/aquasec/trivy.svg)](https://microbadger.com/images/aquasec/trivy "Get your own version badge on microbadger.com")
+[![codecov](https://codecov.io/gh/aquasecurity/trivy/branch/master/graph/badge.svg)](https://codecov.io/gh/aquasecurity/trivy)
 
 A Simple and Comprehensive Vulnerability Scanner for Containers and other Artifacts, Suitable for CI.
 
@@ -182,7 +183,7 @@ yay -Sy trivy-bin
 
 ## Homebrew
 
-You can use homebrew on macOS.
+You can use homebrew on macOS and Linux.
 
 ```
 $ brew install aquasecurity/trivy/trivy
@@ -1731,6 +1732,7 @@ OPTIONS:
    --ignorefile value  specify .trivyignore file (default: ".trivyignore") [$TRIVY_IGNOREFILE]
    --timeout value     docker timeout (default: 2m0s) [$TRIVY_TIMEOUT]
    --light             light mode: it's faster, but vulnerability descriptions and references are not displayed (default: false) [$TRIVY_LIGHT]
+   --list-all-pkgs     enabling the option will output all packages regardless of vulnerability [$TRIVY_LIST_ALL_PKGS]
    --help, -h          show help (default: false)
 ```
 

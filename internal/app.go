@@ -367,10 +367,7 @@ func NewFilesystemCommand() *cli.Command {
 			&timeoutFlag,
 			&noProgressFlag,
 			&ignorePolicy,
-<<<<<<< HEAD
-=======
 			&listAllPackages,
->>>>>>> master
 		},
 	}
 }
@@ -400,10 +397,7 @@ func NewRepositoryCommand() *cli.Command {
 			&timeoutFlag,
 			&noProgressFlag,
 			&ignorePolicy,
-<<<<<<< HEAD
-=======
 			&listAllPackages,
->>>>>>> master
 		},
 	}
 }

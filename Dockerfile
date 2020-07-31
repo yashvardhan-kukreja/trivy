@@ -5,5 +5,4 @@ COPY trivy /usr/local/bin/trivy
 COPY contrib/gitlab.tpl contrib/gitlab.tpl
 COPY contrib/junit.tpl contrib/junit.tpl
 COPY contrib/sarif.tpl contrib/sarif.tpl
-USER appuser
 ENTRYPOINT ["trivy"]

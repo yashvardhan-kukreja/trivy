@@ -113,7 +113,7 @@ func Test_dbWorker_update(t *testing.T) {
 				output: needsUpdateOutput{needsUpdate: true},
 			},
 			args:    args{appVersion: "1", nilGaugeVec: true},
-			wantErr: "Prometheus gauge found to be nil: Prometheus gauge found to be nil",
+			wantErr: "prometheus gauge found to be nil while making last db update",
 		},
 	}
 	for _, tt := range tests {

@@ -54,7 +54,6 @@ func ListenAndServe(c config.Config, fsCache cache.FSCache) error {
 	go func() {
 		worker := initializeDBWorker(c.CacheDir, true)
 		if err := initializeMetricGauge(c.GaugeMetric, c.CacheDir); err != nil {
-			c.GaugeMetric = nil // just in case some if some error/issue occurs (probably with GaugeMetric). So, making c.GaugeMetric nil and hence, unusable for any of the functions which require it
 			log.Logger.Errorf("%+v\n", err)
 		}
 		ctx := context.Background()
@@ -111,8 +110,8 @@ func newDBWorker(dbClient dbFile.Operation) dbWorker {
 
 func (w dbWorker) update(ctx context.Context, appVersion, cacheDir string,
 	dbUpdateWg, requestWg *sync.WaitGroup, gaugeMetric *prometheus.GaugeVec) error {
-	if err := updateLastDBUpdatePrometheus(gaugeMetric, float64(time.Now().Unix()), true); err != nil { //updating the last_db_update_attempt prom metric coz a db update attempt got triggered
-		return xerrors.Errorf("%w", err)
+	if err := updateLastDBUpdatePrometheus(gaugeMetric, float64(time.Now().Unix()), true); err != nil {
+		return err
 	}
 	log.Logger.Debug("Check for DB update...")
 	needsUpdate, err := w.dbClient.NeedsUpdate(appVersion, false, false)
@@ -126,8 +125,8 @@ func (w dbWorker) update(ctx context.Context, appVersion, cacheDir string,
 	if err = w.hotUpdate(ctx, cacheDir, dbUpdateWg, requestWg); err != nil {
 		return xerrors.Errorf("failed DB hot update")
 	}
-	if err = updateLastDBUpdatePrometheus(gaugeMetric, float64(time.Now().Unix()), false); err != nil { //updating the last_db_update metric (here, coz code reaches till here, then it's a successful db update)
-		return xerrors.Errorf("%w", err)
+	if err = updateLastDBUpdatePrometheus(gaugeMetric, float64(time.Now().Unix()), false); err != nil { 
+		return err
 	}
 	return nil
 }
@@ -171,24 +170,23 @@ func (w dbWorker) hotUpdate(ctx context.Context, cacheDir string, dbUpdateWg, re
 }
 
 func initializeMetricGauge(gauge *prometheus.GaugeVec, cacheDir string) error {
-	// the nil gauge situation will be caught by updateLastDBUpdatePrometheus function
 	m := dbFile.NewMetadata(afero.NewOsFs(), cacheDir)
 	metadata, err := m.Get()
 	if err != nil {
-		return xerrors.Errorf("Error initialising the metrics for prometheus endpoint: %w", err)
+		return xerrors.Errorf("error initialising the metrics for prometheus endpoint: %w", err)
 	}
-	if err = updateLastDBUpdatePrometheus(gauge, float64(metadata.UpdatedAt.Unix()), true); err != nil { //updating the last_db_update_attempt prom metric coz a db update attempt got triggered
-		return xerrors.Errorf("%w", err)
+	if err = updateLastDBUpdatePrometheus(gauge, float64(metadata.UpdatedAt.Unix()), true); err != nil {
+		return err
 	}
-	if err = updateLastDBUpdatePrometheus(gauge, float64(metadata.UpdatedAt.Unix()), false); err != nil { //updating the last_db_update metric (here, coz code reaches till here, then it's a successful db update)
-		return xerrors.Errorf("%w", err)
+	if err = updateLastDBUpdatePrometheus(gauge, float64(metadata.UpdatedAt.Unix()), false); err != nil {
+		return err
 	}
 	return nil
 }
 
 func updateLastDBUpdatePrometheus(gauge *prometheus.GaugeVec, time float64, onlyDBAttempt bool) error {
 	if gauge == nil {
-		return xerrors.Errorf("Prometheus gauge found to be nil")
+		return xerrors.Errorf("prometheus gauge found to be nil while making last db update")
 	}
 	if onlyDBAttempt {
 		gauge.With(prometheus.Labels{"action": "last_db_update_attempt"}).Set(time)

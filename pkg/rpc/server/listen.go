@@ -125,7 +125,7 @@ func (w dbWorker) update(ctx context.Context, appVersion, cacheDir string,
 	if err = w.hotUpdate(ctx, cacheDir, dbUpdateWg, requestWg); err != nil {
 		return xerrors.Errorf("failed DB hot update")
 	}
-	if err = updateLastDBUpdatePrometheus(gaugeMetric, float64(time.Now().Unix()), false); err != nil { 
+	if err = updateLastDBUpdatePrometheus(gaugeMetric, float64(time.Now().Unix()), false); err != nil {
 		return err
 	}
 	return nil

@@ -23,6 +23,7 @@ require (
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/olekukonko/tablewriter v0.0.2-0.20190607075207-195002e6e56a
 	github.com/open-policy-agent/opa v0.21.1
+	github.com/prometheus/client_golang v1.0.0
 	github.com/spf13/afero v1.2.2
 	github.com/stretchr/testify v1.6.1
 	github.com/testcontainers/testcontainers-go v0.3.1
@@ -34,5 +35,4 @@ require (
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
-	github.com/prometheus/client_golang v1.0.0
 )

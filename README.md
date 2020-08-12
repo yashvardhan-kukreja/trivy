@@ -900,6 +900,12 @@ In the following example using the template `sarif.tpl` [Sarif](https://docs.git
 $ trivy image --format template --template "@contrib/sarif.tpl" -o report.sarif  golang:1.12-alpine
 ```
 
+In the following example using the template `asff.tpl` [ASFF](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-findings-format.html) can be generated.
+```
+$ AWS_REGION=us-west AWS_ACCOUNT_ID=123456789012 trivy image --format template --template "@contrib/asff.tpl" -o report.asff  golang:1.12-alpine
+```
+ASFF template needs AWS_REGION and AWS_ACCOUNT_ID from environment variables.
+
 ### Filter the vulnerabilities by severities
 
 ```
@@ -1791,15 +1797,15 @@ See [here](docs/air-gap.md)
 
 ## Overview
 
-| Scanner        | OS<br>Packages | Application<br>Dependencies | Easy to use | Accuracy | Suitable<br>for CI |
-| -------------- | :------------: | :-------------------------: | :---------: | :------: | :-------------------: |
-| Trivy          |       ◯        |              ◯              |      ◯      |    ◎     |           ◯           |
-| Clair          |       ◯        |              ×              |      △      |    ◯     |           △           |
-| Anchore Engine |       ◯        |              △              |      △      |    ◯     |           △           |
-| Quay           |       ◯        |              ×              |      ◯      |    ◯     |           ×           |
-| MicroScanner   |       ◯        |              ×              |      ◯      |    ◯     |           ◯           |
-| Docker Hub     |       ◯        |              ×              |      ◯      |    ×     |           ×           |
-| GCR            |       ◯        |              ×              |      ◯      |    ◯     |           ×           |
+| Scanner        | OS<br>Packages  | Application<br>Dependencies | Easy to use  | Accuracy    | Suitable<br>for CI  |
+| -------------- | :-------------: | :-------------------------: | :----------: | :---------: | :-----------------: |
+| Trivy          |       OK        |              OK             |      OK      |    Best     |       OK            |
+| Clair          |       OK        |         Not present         |      Good    |    OK       |       Good          |
+| Anchore Engine |       OK        |             Good            |      Good    |    OK       |       Good          |
+| Quay           |       OK        |         Not present         |      OK      |    OK       |    Not present      |
+| MicroScanner   |       OK        |         Not present         |      OK      |    OK       |       OK            |
+| Docker Hub     |       OK        |         Not present         |      OK      | Not present |    Not present      |
+| GCR            |       OK        |         Not present         |      OK      |    OK       |    Not present      |
 
 ## Blogs
 - [Open Source CVE Scanner Round-Up: Clair vs Anchore vs Trivy](https://boxboat.com/2020/04/24/image-scanning-tech-compared/)

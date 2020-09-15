@@ -8,6 +8,7 @@ import (
 	"github.com/aquasecurity/trivy-db/pkg/db"
 	"github.com/aquasecurity/trivy/internal/operation"
 	"github.com/aquasecurity/trivy/internal/server/config"
+	"github.com/aquasecurity/trivy/internal/server/extendedConfig"
 	"github.com/aquasecurity/trivy/pkg/log"
 	"github.com/aquasecurity/trivy/pkg/rpc/server"
 	"github.com/aquasecurity/trivy/pkg/utils"
@@ -55,5 +56,9 @@ func run(c config.Config) (err error) {
 		return xerrors.Errorf("error in vulnerability DB initialize: %w", err)
 	}
 
-	return server.ListenAndServe(c, fsCache)
+	//initializing the extendedConfig which will involve prometheus support
+	ec := extendedConfig.New(c)
+	ec.Init()
+
+	return server.ListenAndServe(ec, fsCache)
 }

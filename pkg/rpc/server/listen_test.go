@@ -141,6 +141,9 @@ func Test_dbWorker_update(t *testing.T) {
 						require.NoError(t, os.MkdirAll(filepath.Dir(dbPath), 0777), tt.name)
 						err = ioutil.WriteFile(dbPath, content, 0444)
 						require.NoError(t, err, tt.name)
+						dbDir := filepath.Join(cacheDir, "db")
+						err = db.Config{}.StoreMetadata(tt.want, dbDir)
+						require.NoError(t, err, tt.name)
 					}).Return(tt.download.err)
 			}
 

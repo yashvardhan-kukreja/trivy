@@ -18,7 +18,7 @@ import (
 
 	"github.com/aquasecurity/fanal/cache"
 	"github.com/aquasecurity/trivy-db/pkg/db"
-	"github.com/aquasecurity/trivy/internal/server/config"
+	"github.com/aquasecurity/trivy/internal/server/extendedConfig"
 	dbFile "github.com/aquasecurity/trivy/pkg/db"
 	"github.com/aquasecurity/trivy/pkg/log"
 	"github.com/aquasecurity/trivy/pkg/utils"
@@ -33,7 +33,8 @@ var DBWorkerSuperSet = wire.NewSet(
 	newDBWorker,
 )
 
-func ListenAndServe(c config.Config, fsCache cache.FSCache) error {
+func ListenAndServe(ec extendedConfig.ExtendedConfig, fsCache cache.FSCache) error {
+	c := ec.Config
 	requestWg := &sync.WaitGroup{}
 	dbUpdateWg := &sync.WaitGroup{}
 
@@ -53,13 +54,13 @@ func ListenAndServe(c config.Config, fsCache cache.FSCache) error {
 
 	go func() {
 		worker := initializeDBWorker(c.CacheDir, true)
-		if err := initializeMetricGauge(c.GaugeMetric, c.CacheDir); err != nil {
+		if err := repopulateMetricGauge(ec.GaugeMetric, c.CacheDir); err != nil {
 			log.Logger.Errorf("%+v\n", err)
 		}
 		ctx := context.Background()
 		for {
 			time.Sleep(1 * time.Hour)
-			if err := worker.update(ctx, c.AppVersion, c.CacheDir, dbUpdateWg, requestWg, c.GaugeMetric); err != nil {
+			if err := worker.update(ctx, c.AppVersion, c.CacheDir, dbUpdateWg, requestWg, ec.GaugeMetric); err != nil {
 				log.Logger.Errorf("%+v\n", err)
 			}
 		}
@@ -82,7 +83,7 @@ func ListenAndServe(c config.Config, fsCache cache.FSCache) error {
 	mux.Handle(rpcDetector.LibDetectorPathPrefix, withToken(withWaitGroup(libHandler), c.Token, c.TokenHeader))
 
 	// promHandler is for dealing with update the custom prometheus metrics
-	promHandler := promhttp.HandlerFor(c.MetricsRegistry, promhttp.HandlerOpts{Timeout: 10 * time.Second})
+	promHandler := promhttp.HandlerFor(ec.MetricsRegistry, promhttp.HandlerOpts{Timeout: 10 * time.Second})
 	mux.Handle("/metrics", withToken(withWaitGroup(promHandler), c.Token, c.TokenHeader))
 
 	log.Logger.Infof("Listening %s...", c.Listen)
@@ -125,8 +126,8 @@ func (w dbWorker) update(ctx context.Context, appVersion, cacheDir string,
 	if err = w.hotUpdate(ctx, cacheDir, dbUpdateWg, requestWg); err != nil {
 		return xerrors.Errorf("failed DB hot update")
 	}
-	if err = updateLastDBUpdatePrometheus(gaugeMetric, float64(time.Now().Unix()), false); err != nil {
-		return err
+	if err = repopulateMetricGauge(gaugeMetric, cacheDir); err != nil {
+		return xerrors.Errorf("error occurred while updating the prometheus gauge vec: %w", err)
 	}
 	return nil
 }
@@ -169,11 +170,11 @@ func (w dbWorker) hotUpdate(ctx context.Context, cacheDir string, dbUpdateWg, re
 	return nil
 }
 
-func initializeMetricGauge(gauge *prometheus.GaugeVec, cacheDir string) error {
+func repopulateMetricGauge(gauge *prometheus.GaugeVec, cacheDir string) error {
 	m := dbFile.NewMetadata(afero.NewOsFs(), cacheDir)
 	metadata, err := m.Get()
 	if err != nil {
-		return xerrors.Errorf("error initialising the metrics for prometheus endpoint: %w", err)
+		return xerrors.Errorf("error populating the metrics at prometheus endpoint: %w", err)
 	}
 	if err = updateLastDBUpdatePrometheus(gauge, float64(metadata.UpdatedAt.Unix()), true); err != nil {
 		return err

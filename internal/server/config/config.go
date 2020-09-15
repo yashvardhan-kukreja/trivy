@@ -3,8 +3,6 @@ package config
 import (
 	"github.com/aquasecurity/trivy/internal/config"
 	"github.com/urfave/cli/v2"
-
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Config struct {
@@ -14,8 +12,6 @@ type Config struct {
 	Listen          string
 	Token           string
 	TokenHeader     string
-	MetricsRegistry *prometheus.Registry
-	GaugeMetric     *prometheus.GaugeVec
 }
 
 func New(c *cli.Context) Config {
@@ -29,23 +25,12 @@ func New(c *cli.Context) Config {
 		Listen:          c.String("listen"),
 		Token:           c.String("token"),
 		TokenHeader:     c.String("token-header"),
-		MetricsRegistry: prometheus.NewRegistry(),
 	}
 }
 
 func (c *Config) Init() (err error) {
 	if err := c.DBConfig.Init(); err != nil {
 		return err
-	}
-	if c.MetricsRegistry != nil {
-		c.GaugeMetric = prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Name: "trivy",
-				Help: "Gauge Metrics associated with trivy - Last DB Update, Last DB Update Attempt ...",
-			},
-			[]string{"action"},
-		)
-		c.MetricsRegistry.MustRegister(c.GaugeMetric)
 	}
 	return nil
 }

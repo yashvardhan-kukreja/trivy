@@ -6,7 +6,7 @@ import (
 )
 
 type ExtendedConfig struct {
-	Config config.Config
+	Config          config.Config
 	MetricsRegistry *prometheus.Registry
 	GaugeMetric     *prometheus.GaugeVec
 }

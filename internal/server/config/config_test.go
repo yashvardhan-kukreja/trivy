@@ -59,11 +59,11 @@ func TestNew(t *testing.T) {
 
 func TestConfig_Init(t *testing.T) {
 	tests := []struct {
-		name                string
-		globalConfig        config.GlobalConfig
-		dbConfig            config.DBConfig
-		args                []string
-		wantErr             string
+		name         string
+		globalConfig config.GlobalConfig
+		dbConfig     config.DBConfig
+		args         []string
+		wantErr      string
 	}{
 		{
 			name: "happy path",
@@ -89,7 +89,7 @@ func TestConfig_Init(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &c.Config{
-				DBConfig:        tt.dbConfig,
+				DBConfig: tt.dbConfig,
 			}
 
 			err := c.Init()

@@ -9,9 +9,9 @@ type Config struct {
 	config.GlobalConfig
 	config.DBConfig
 
-	Listen          string
-	Token           string
-	TokenHeader     string
+	Listen      string
+	Token       string
+	TokenHeader string
 }
 
 func New(c *cli.Context) Config {
@@ -22,9 +22,9 @@ func New(c *cli.Context) Config {
 		GlobalConfig: gc,
 		DBConfig:     config.NewDBConfig(c),
 
-		Listen:          c.String("listen"),
-		Token:           c.String("token"),
-		TokenHeader:     c.String("token-header"),
+		Listen:      c.String("listen"),
+		Token:       c.String("token"),
+		TokenHeader: c.String("token-header"),
 	}
 }
 

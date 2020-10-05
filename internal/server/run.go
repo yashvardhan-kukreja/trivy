@@ -56,7 +56,6 @@ func run(c config.Config) (err error) {
 		return xerrors.Errorf("error in vulnerability DB initialize: %w", err)
 	}
 
-	//initializing the extendedConfig which will involve prometheus support
 	ec := extendedConfig.New(c)
 	ec.Init()
 

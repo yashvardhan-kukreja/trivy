@@ -82,7 +82,6 @@ func ListenAndServe(ec extendedConfig.ExtendedConfig, fsCache cache.FSCache) err
 	libHandler := rpcDetector.NewLibDetectorServer(initializeLibServer(), nil)
 	mux.Handle(rpcDetector.LibDetectorPathPrefix, withToken(withWaitGroup(libHandler), c.Token, c.TokenHeader))
 
-	// promHandler is for dealing with update the custom prometheus metrics
 	promHandler := promhttp.HandlerFor(ec.MetricsRegistry, promhttp.HandlerOpts{Timeout: 10 * time.Second})
 	mux.Handle("/metrics", withToken(withWaitGroup(promHandler), c.Token, c.TokenHeader))
 

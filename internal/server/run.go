@@ -7,6 +7,7 @@ import (
 	"github.com/aquasecurity/trivy-db/pkg/db"
 	"github.com/aquasecurity/trivy/internal/operation"
 	"github.com/aquasecurity/trivy/internal/server/config"
+	"github.com/aquasecurity/trivy/internal/server/extendedConfig"
 	"github.com/aquasecurity/trivy/pkg/log"
 	"github.com/aquasecurity/trivy/pkg/rpc/server"
 	"github.com/aquasecurity/trivy/pkg/utils"
@@ -52,6 +53,8 @@ func run(c config.Config) (err error) {
 	if err = db.Init(c.CacheDir); err != nil {
 		return xerrors.Errorf("error in vulnerability DB initialize: %w", err)
 	}
+	ec := extendedConfig.New(c)
+	ec.Init()
 
-	return server.ListenAndServe(c, cache)
+	return server.ListenAndServe(ec, cache)
 }

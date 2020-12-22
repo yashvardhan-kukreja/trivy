@@ -12,6 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aquasecurity/trivy/internal/config"
+	c "github.com/aquasecurity/trivy/internal/server/config"
+	"github.com/aquasecurity/trivy/internal/server/extendedConfig"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -52,7 +56,8 @@ func Test_dbWorker_update(t *testing.T) {
 	}
 
 	type args struct {
-		appVersion string
+		appVersion  string
+		nilGaugeVec bool
 	}
 	tests := []struct {
 		name        string
@@ -109,6 +114,15 @@ func Test_dbWorker_update(t *testing.T) {
 			args:    args{appVersion: "1"},
 			wantErr: "failed DB hot update",
 		},
+		{
+			name: "Nil GaugeVec returns an error",
+			needsUpdate: needsUpdate{
+				input:  needsUpdateInput{appVersion: "1", skip: false},
+				output: needsUpdateOutput{needsUpdate: true},
+			},
+			args:    args{appVersion: "1", nilGaugeVec: true},
+			wantErr: "prometheus gauge found to be nil while making last db update",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -135,14 +149,29 @@ func Test_dbWorker_update(t *testing.T) {
 						require.NoError(t, os.MkdirAll(filepath.Dir(dbPath), 0777), tt.name)
 						err = ioutil.WriteFile(dbPath, content, 0444)
 						require.NoError(t, err, tt.name)
+						dbDir := filepath.Join(cacheDir, "db")
+						err = db.Config{}.StoreMetadata(tt.want, dbDir)
+						require.NoError(t, err, tt.name)
 					}).Return(tt.download.err)
 			}
 
 			w := newDBWorker(mockDBClient)
-
+			var gaugeVec *prometheus.GaugeVec
+			if tt.args.nilGaugeVec {
+				gaugeVec = nil
+			} else {
+				gaugeVec = prometheus.NewGaugeVec(
+					prometheus.GaugeOpts{
+						Name: "trivy",
+						Help: "Gauge Metrics associated with trivy - Last DB Update, Last DB Update Attempt ...",
+					},
+					[]string{"action"},
+				)
+				prometheus.NewRegistry().MustRegister(gaugeVec)
+			}
 			var dbUpdateWg, requestWg sync.WaitGroup
 			err = w.update(context.Background(), tt.args.appVersion, cacheDir,
-				&dbUpdateWg, &requestWg)
+				&dbUpdateWg, &requestWg, gaugeVec)
 			if tt.wantErr != "" {
 				require.NotNil(t, err, tt.name)
 				assert.Contains(t, err.Error(), tt.wantErr, tt.name)
@@ -171,11 +200,13 @@ func Test_newServeMux(t *testing.T) {
 		tokenHeader string
 	}
 	tests := []struct {
-		name   string
-		args   args
-		path   string
-		header http.Header
-		want   int
+		name         string
+		globalConfig config.GlobalConfig
+		dbConfig     config.DBConfig
+		args         args
+		path         string
+		header       http.Header
+		want         int
 	}{
 		{
 			name: "health check",
@@ -185,6 +216,9 @@ func Test_newServeMux(t *testing.T) {
 		{
 			name: "cache endpoint",
 			path: path.Join(rpcCache.CachePathPrefix, "MissingBlobs"),
+			dbConfig: config.DBConfig{
+				Reset: true,
+			},
 			header: http.Header{
 				"Content-Type": []string{"application/protobuf"},
 			},
@@ -206,6 +240,9 @@ func Test_newServeMux(t *testing.T) {
 		{
 			name: "sad path: no handler",
 			path: "/sad",
+			dbConfig: config.DBConfig{
+				Reset: false,
+			},
 			header: http.Header{
 				"Content-Type": []string{"application/protobuf"},
 			},
@@ -228,11 +265,20 @@ func Test_newServeMux(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dbUpdateWg, requestWg := &sync.WaitGroup{}, &sync.WaitGroup{}
 
-			c, err := cache.NewFSCache(t.TempDir())
+			internalConfig := &c.Config{
+				DBConfig: tt.dbConfig,
+			}
+
+			err := internalConfig.Init()
+
+			fsCache, err := cache.NewFSCache(t.TempDir())
 			require.NoError(t, err)
 
+			ec := extendedConfig.New(*internalConfig)
+			ec.Init()
+
 			ts := httptest.NewServer(newServeMux(
-				c, dbUpdateWg, requestWg, tt.args.token, tt.args.tokenHeader),
+				ec, fsCache, dbUpdateWg, requestWg, tt.args.token, tt.args.tokenHeader),
 			)
 			defer ts.Close()
 
